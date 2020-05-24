@@ -5,9 +5,8 @@ import torch.nn.functional as F
 
 class base_VGG(nn.Module):
 
-    def __init__(self, imgH, nc, leakyRelu=False):
+    def __init__(self, nc, leakyRelu=False):
         super(base_VGG, self).__init__()
-        assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
         #     0  1  2  3  4  5  6
         ks = [3, 3, 3, 3, 3, 3, 2]  #kernel size
         ps = [1, 1, 1, 1, 1, 1, 0]  #padding size
@@ -89,8 +88,7 @@ class base_VGG(nn.Module):
         # conv features
         conv = self.cnn(input)
         b, c, h, w = conv.size()  # b, 512, 1, 32
-        print(conv.size())
-        #assert h == 1, "the height of conv must be 1"
+        assert h == 1,"the height of conv must be 1"
 
         return conv
 
@@ -104,5 +102,4 @@ class debug_test(nn.Module):
         out1 = F.sigmoid(self.linear1(input))
         out2 = F.sigmoid(self.linear2(out1))
         out3 = self.linear3(out2)
-        out3_cpu = out3.detach().cpu().numpy()
         return out3

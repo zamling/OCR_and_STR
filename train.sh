@@ -1,0 +1,1 @@
+/home/zem/.conda/envs/zemPy/bin/python -u /data1/zem/OCR_and_STR/train.py

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" serverName="zem@192.168.0.114:22 password">
+  <component name="PublishConfigData" autoUpload="On explicit save action" serverName="zem@192.168.0.114:22 password" autoUploadExternalChanges="true">
     <serverData>
       <paths name="zem@192.168.0.114:22">
         <serverdata>
@@ -14,6 +14,10 @@
           <mappings>
             <mapping deploy="/OCR_and_STR" local="$PROJECT_DIR$" />
           </mappings>
+          <excludedPaths>
+            <excludedPath local="true" path="$PROJECT_DIR$/data" />
+            <excludedPath local="true" path="$PROJECT_DIR$/model" />
+          </excludedPaths>
         </serverdata>
       </paths>
       <paths name="zem@192.168.0.114:22 password (1)">
@@ -24,5 +28,6 @@
         </serverdata>
       </paths>
     </serverData>
+    <option name="myAutoUpload" value="ON_EXPLICIT_SAVE" />
   </component>
 </project>
