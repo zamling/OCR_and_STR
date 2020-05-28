@@ -8,13 +8,16 @@ from torchvision import transforms
 import torch.backends.cudnn as cudnn
 from torch.autograd import Variable
 from tqdm import tqdm
+from tensorboardX import SummaryWriter
+from PIL import Image
 
 '''
-参数的具体值
-优化器参数
+annotation_train 7224612
+annotation_test 891927 
+annotation_val 802734 
 '''
 
-BATCH_SIZE = 100
+BATCH_SIZE = 64
 ROOT_DIR = './data/mnt/ramdisk/max/90kDICT32px'
 TRAN_FILE_DIR = '/annotation_train.txt'
 TEST_FILE_DIR = '/annotation_test.txt'
@@ -23,9 +26,14 @@ IMAGE_CHANNEL = 3
 HIDDERN_SIZE_LSTM = 256
 NEPOCH = 10
 DISPLAY = 1000
-VALIDATION = 2000
-SAVE = 4000
+RECORD = 200
+VALIDATION = 8000
+SAVE = 50000
 expr_dir = './model'
+
+writer = SummaryWriter(comment='crnn-resnet')
+global_step = 0
+
 
 cudnn.benchmark = True
 
@@ -60,14 +68,18 @@ loss_avg_for_tra = utils.Averager()
 
 trans = transforms.Compose([transforms.Resize((32,100)),transforms.ToTensor()])
 
-train_dataset = utils.OCR_dataset(ROOT_DIR,TRAN_FILE_DIR,num=1000000,transform=trans)
+train_dataset = utils.OCR_dataset(ROOT_DIR,TRAN_FILE_DIR,num=7200000,transform=trans)
 
 train_loader = DataLoader(dataset=train_dataset,batch_size=BATCH_SIZE,shuffle=True,num_workers=2,drop_last=True)
 
-test_dataset = utils.OCR_dataset(ROOT_DIR,TEST_FILE_DIR,num=4000,transform=trans)
+test_dataset = utils.OCR_dataset(ROOT_DIR,TEST_FILE_DIR,num=10000,transform=trans)
 
-net = model_building.crnn(IMAGE_CHANNEL,HIDDERN_SIZE_LSTM,len(alphabet)+1).to(device)
-net.apply(weights_init)
+net = model_building.crnn_resnet(IMAGE_CHANNEL,HIDDERN_SIZE_LSTM,len(alphabet)+1).to(device)
+net.apply((weights_init))
+
+demo_dir = './data/demo.png'
+
+
 
 # if opt.adam:
 #     optimizer = torch.optim.Adam(net.parameters(), lr=opt.lr,
@@ -75,7 +87,7 @@ net.apply(weights_init)
 # elif opt.adadelta:
 #     optimizer = torch.optim.Adadelta(net.parameters())
 # else:
-optimizer = torch.optim.Adam(net.parameters(), lr=0.0001, betas=(0.5,0.999))
+optimizer = torch.optim.Adam(net.parameters(),lr=0.0001,betas=(0.5,0.999))
 
 # nets = net.named_modules()
 # for name,module in nets:
@@ -144,18 +156,23 @@ for epoch in range(NEPOCH):
             p.requires_grad = True
         net.train()
         cost = trainBatch(net,criterion,optimizer)
+        if i%RECORD == 0 and i != 0:
+            writer.add_scalar('train losses',cost.item(),global_step=global_step)
+            global_step += 1
         loss_avg_for_tra.add(cost)
         i += 1
         if i%DISPLAY == 0 and i != 0:
             print('[%d/%d][%d/%d] Loss: %f' %
-                  (epoch, NEPOCH, i, len(train_loader), loss_avg_for_tra.val()))
+                  (epoch+1, NEPOCH, i, len(train_loader), loss_avg_for_tra.val()))
             loss_avg_for_tra.reset()
         if i%VALIDATION == 0 and i != 0:
             Val(net,test_dataset,criterion)
 
         if i%SAVE == 0 and i != 0:
-            torch.save(net.state_dict(),'{0}/netCRNN_{1}_{2}.pth'.format(expr_dir, epoch, i))
+            torch.save(net.state_dict(),'{0}/720w_Resnet_CRNN_{1}_{2}.pth'.format(expr_dir, epoch+1, i))
 
+
+writer.close()
 
 
 

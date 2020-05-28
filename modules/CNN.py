@@ -1,5 +1,5 @@
 import torch.nn as nn
-import torch.nn.functional as F
+import torch
 
 
 
@@ -92,14 +92,74 @@ class base_VGG(nn.Module):
 
         return conv
 
-class debug_test(nn.Module):
-    def __init__(self):
-        super(debug_test,self).__init__()
-        self.linear1 = nn.Linear(5,10)
-        self.linear2 = nn.Linear(10,20)
-        self.linear3 = nn.Linear(20,5)
+class ResnetUnit(nn.Module):
+    def __init__(self,In,Out,stride):
+        super(ResnetUnit,self).__init__()
+        self.cov1 = nn.Conv2d(In,Out,kernel_size=1,stride=stride,bias=False)
+        self.bn1 = nn.BatchNorm2d(Out)
+        self.relu = nn.ReLU(inplace=True)
+        self.cov2 = nn.Conv2d(Out,Out,kernel_size=3,padding=1,stride=1)
+        self.bn2 = nn.BatchNorm2d(Out)
+        self.shortcut = nn.Sequential()
+        if stride != 1 or In != Out:
+            self.shortcut.add_module('shortcut',nn.Conv2d(In,Out,kernel_size=1,stride=stride,bias=False))
+            self.shortcut.add_module('Batchnorm',nn.BatchNorm2d(Out))
     def forward(self,input):
-        out1 = F.sigmoid(self.linear1(input))
-        out2 = F.sigmoid(self.linear2(out1))
-        out3 = self.linear3(out2)
-        return out3
+        conv1 = self.cov1(input)
+        bn1 = self.bn1(conv1)
+        re1 = self.relu(bn1)
+        conv2 = self.cov2(re1)
+        out = self.bn2(conv2)
+        out += self.shortcut(input)
+        out = self.relu(out)
+        return out
+
+class ResNet(nn.Module):
+    def __init__(self,nc):
+        super(ResNet, self).__init__()
+        self.in_plane = 32
+        self.layer0 = nn.Sequential(nn.Conv2d(nc,32,kernel_size=3,stride=1,padding=1,bias=False),
+                               nn.BatchNorm2d(32),
+                               nn.ReLU(inplace=True))#[32,100]
+        self.layer1 = self._make_layer(3,32,stride=[2,2])#[16,50]
+        self.layer2 = self._make_layer(4,64,stride=[2,2])#[8,25]
+        self.layer3 = self._make_layer(6,128,stride=[2,1])#[4,25]
+        self.layer4 = self._make_layer(6,256,stride=[2,1])#[2,25]
+        self.layer5 = self._make_layer(3,512,stride=[2,1])#[1,25]
+
+
+
+
+
+
+    def _make_layer(self,num_blocks,planes,stride):
+        strides = [stride]+[1]*(num_blocks-1)
+        layers = []
+        for strd in strides:
+            layers.append(ResnetUnit(self.in_plane,planes,strd))
+            self.in_plane = planes
+        return nn.Sequential(*layers)
+
+    def forward(self,x):
+        x0 = self.layer0(x)
+        x1 = self.layer1(x0)
+        x2 = self.layer2(x1)
+        x3 = self.layer3(x2)
+        x4 = self.layer4(x3)
+        x5 = self.layer5(x4)
+        _,_,h,_ = x5.size()
+        assert h == 1, 'The output height must be 1,now is {}'.format(h)
+        return x5
+
+# if __name__ == "__main__":
+#     net = ResNet(3)
+#     print(net)
+#     x = torch.randn(3, 3, 32, 100)
+#     out = net(x)
+#     print(out.size())
+
+
+
+
+
+

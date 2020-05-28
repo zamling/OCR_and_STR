@@ -1,15 +1,17 @@
 from modules.model_building import crnn
 from utils.utils import strLabelToInt
+from tensorboardX import SummaryWriter
 import torch
 from PIL import Image
 from torchvision import transforms
 
 
 
+
 alphabet = '0123456789abcdefghijklmnopqrstuvwxyz'
 model_root = './model'
 img_path = './data/demo.png'
-
+writer = SummaryWriter()
 convert = strLabelToInt(alphabet)
 
 model_path = model_root + '/netCRNN_9_8000.pth'
@@ -23,12 +25,13 @@ img = img.unsqueeze(0)
 pred = net(img)
 _,pred = pred.max(2)
 length = torch.IntTensor([26])
+writer.add_graph(net,img)
 
 raw_text = convert.decoder(pred,length)
 pred_text = convert.decoder(pred,length,raw=False)
 print('the word in pic is "Available"')
 print('while the predicted result is {} from {}'.format(pred_text,raw_text))
-
+writer.close()
 
 
 
