@@ -17,7 +17,25 @@ annotation_test 891927
 annotation_val 802734 
 '''
 
-BATCH_SIZE = 64
+train_error= ['/2069/4/192_whittier_86389.jpg',
+              '/2025/2/364_SNORTERS_72304.jpg',
+              '/2013/2/370_refract_63890.jpg',
+              '/1881/4/225_Marbling_46673.jpg',
+              '/1863/4/223_Diligently_21672.jpg',
+              '/1817/2/363_actuating_904.jpg',
+              '/913/4/231_randoms_62372.jpg',
+              '/869/4/234_TRIASSIC_80582.jpg',
+              '/495/6/81_MIDYEAR_48332.jpg',
+              '/368/4/232_friar_30876.jpg',
+              '/275/6/96_hackle_34465.jpg',
+              '/173/2/358_BURROWING_10395.jpg']
+
+test_error = ['/2911/6/77_heretical_35885.jpg',
+              '/2852/6/60_TOILSOME_79481.jpg',
+              '/2749/6/101_Chided_13155.jpg']
+
+
+BATCH_SIZE = 100
 ROOT_DIR = './data/mnt/ramdisk/max/90kDICT32px'
 TRAN_FILE_DIR = '/annotation_train.txt'
 TEST_FILE_DIR = '/annotation_test.txt'
@@ -25,13 +43,13 @@ alphabet = '0123456789abcdefghijklmnopqrstuvwxyz'
 IMAGE_CHANNEL = 3
 HIDDERN_SIZE_LSTM = 256
 NEPOCH = 10
-DISPLAY = 1000
+DISPLAY = 2000
 RECORD = 200
-VALIDATION = 8000
-SAVE = 50000
+VALIDATION = 16000
+SAVE = 35000
 expr_dir = './model'
 
-writer = SummaryWriter(comment='crnn-resnet')
+writer = SummaryWriter(comment='720-crnn-vgg')
 global_step = 0
 
 
@@ -64,20 +82,20 @@ loss_avg_for_tra = utils.Averager()
 
 
 
+net = model_building.crnn(IMAGE_CHANNEL,HIDDERN_SIZE_LSTM,len(alphabet)+1).to(device)
+net.apply((weights_init))
 
 
 trans = transforms.Compose([transforms.Resize((32,100)),transforms.ToTensor()])
 
-train_dataset = utils.OCR_dataset(ROOT_DIR,TRAN_FILE_DIR,num=7200000,transform=trans)
+train_dataset = utils.OCR_dataset(ROOT_DIR,TRAN_FILE_DIR,num=7200000,errors=train_error,transform=trans)
 
 train_loader = DataLoader(dataset=train_dataset,batch_size=BATCH_SIZE,shuffle=True,num_workers=2,drop_last=True)
 
-test_dataset = utils.OCR_dataset(ROOT_DIR,TEST_FILE_DIR,num=10000,transform=trans)
+test_dataset = utils.OCR_dataset(ROOT_DIR,TEST_FILE_DIR,num=100000,errors=test_error,transform=trans)
 
-net = model_building.crnn_resnet(IMAGE_CHANNEL,HIDDERN_SIZE_LSTM,len(alphabet)+1).to(device)
-net.apply((weights_init))
 
-demo_dir = './data/demo.png'
+
 
 
 
@@ -138,7 +156,7 @@ def trainBatch(net, criterion, optimizer):
     image = cpu_image.to(device)
     Int_text,Int_length = convert.encoder(cpu_text)
     assert len(Int_text) == Int_length.sum(), 'the encoded text length is not equal to variable length '
-    preds = net(image) #size: T,b,h
+    img_feats = net.en #size: T,b,h
     preds_size = Variable(torch.IntTensor([preds.size(0)] * BATCH_SIZE))  # batch*seq_len
     cost = criterion(preds, Int_text, preds_size, Int_length) / BATCH_SIZE
     net.zero_grad()
@@ -169,7 +187,7 @@ for epoch in range(NEPOCH):
             Val(net,test_dataset,criterion)
 
         if i%SAVE == 0 and i != 0:
-            torch.save(net.state_dict(),'{0}/720w_Resnet_CRNN_{1}_{2}.pth'.format(expr_dir, epoch+1, i))
+            torch.save(net.state_dict(),'{0}/720w_VGG_CRNN_{1}_{2}.pth'.format(expr_dir, epoch+1, i))
 
 
 writer.close()

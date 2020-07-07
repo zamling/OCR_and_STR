@@ -88,7 +88,7 @@ class base_VGG(nn.Module):
         # conv features
         conv = self.cnn(input)
         b, c, h, w = conv.size()  # b, 512, 1, 32
-        assert h == 1,"the height of conv must be 1"
+        # assert h == 1,"the height of conv must be 1"
 
         return conv
 
@@ -127,6 +127,13 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(6,256,stride=[2,1])#[2,25]
         self.layer5 = self._make_layer(3,512,stride=[2,1])#[1,25]
 
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
 
 
 
@@ -151,12 +158,11 @@ class ResNet(nn.Module):
         assert h == 1, 'The output height must be 1,now is {}'.format(h)
         return x5
 
-# if __name__ == "__main__":
-#     net = ResNet(3)
-#     print(net)
-#     x = torch.randn(3, 3, 32, 100)
-#     out = net(x)
-#     print(out.size())
+if __name__ == "__main__":
+    net = base_VGG(3)
+    for name, module in net.named_modules():
+        print((name,module))
+
 
 
 

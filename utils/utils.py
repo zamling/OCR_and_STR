@@ -12,6 +12,9 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 import cv2
 
+
+
+
 def hook_fn_forward(module, input, output):
     print(module) # 用于区分模块
     print('input shape', input[0].shape) # 首先打印出来
@@ -19,7 +22,7 @@ def hook_fn_forward(module, input, output):
 
 
 class OCR_dataset(Dataset):
-    def __init__(self,root_dir,file_dir,num,transform = None):
+    def __init__(self,root_dir,file_dir,num,errors,transform = None):
         super(OCR_dataset,self).__init__()
         self.num = num
         self.root_dir = root_dir
@@ -28,13 +31,16 @@ class OCR_dataset(Dataset):
         self.transform = transform
         ab_file_dir = root_dir + file_dir
         with open(ab_file_dir,'r') as f:
-            pbar = tqdm(range(num))
-            for i in pbar:
-                pbar.set_description('loading dataset form{}'.format(file_dir))
-                self.datas.append(f.readline().strip().split()[0][1:])
+            dirty_data = f.readlines()
+        pbar = tqdm(range(num))
+        for i in pbar:
+            pbar.set_description('loading dataset from{}'.format(file_dir))
+            pri_data = dirty_data[i].strip().split()[0][1:]
+            if pri_data not in errors:
+                self.datas.append(pri_data)
 
     def __len__(self):
-        assert len(self.datas) == self.num,"the loading data's length has a error"
+        # assert len(self.datas) == self.num,"the loading data's length has a error"
         return len(self.datas)
 
     def __getitem__(self, item):
@@ -45,6 +51,54 @@ class OCR_dataset(Dataset):
             img = self.transform(img)
         label = image_name.split('/')[-1].split('.')[0].split('_')[-2]
         return (img,label)
+
+
+
+
+
+class ASTER_str2Int (object):
+    def __init__(self,alphabet,max_len,is_ignore = True):
+        self._is_ignore = is_ignore
+        self.max_len = max_len
+        if self._is_ignore:
+            alphabet = alphabet.lower()
+        self.alphabet = alphabet + '$' + '-'
+        self.dict = {}
+        for i,char in enumerate(self.alphabet):
+            self.dict[char] = i
+    def encoder(self,words):
+        texts = []
+        text_len = []
+        for i in words:
+            text = [self.dict[char.lower() if self._is_ignore else char] for char in i]
+            text.append(self.dict['$'])
+            text_len.append(len(text))
+            res_text = [self.dict['-'] for i in range(self.max_len)]
+            res_text[:len(text)] = text
+            texts.append(res_text)
+        return torch.IntTensor(texts), torch.IntTensor(text_len)
+
+    def decoder(self,words):
+        texts = []
+        for i in words:
+            print(i)
+            res_str = ''
+            for j in i:
+                if j == self.dict['$']:
+                    texts.append(res_str)
+                    break
+                else:
+                    res_str += self.alphabet[j]
+        return texts
+
+
+
+
+
+
+
+
+
 
 class strLabelToInt(object):
     def __init__(self, alphabet, is_ignore = True):
@@ -90,6 +144,13 @@ class strLabelToInt(object):
                 )
                 index += l
             return texts
+
+
+
+
+
+
+
 
 
 class Averager(object):
